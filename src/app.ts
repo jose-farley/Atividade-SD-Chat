@@ -3,6 +3,7 @@ import http from 'http'
 import { Server } from 'socket.io'
 import { router } from './routes';
 import { RedisClient } from './redis.config';
+import { getDate } from './util/getDate';
 
 
 const app = express()
@@ -15,31 +16,35 @@ const serverHttp = http.createServer(app)
 const io = new Server(serverHttp)
 
 io.on('connection', async (socket) => {
-
-    let res = await RedisClient.keys("*")
-    let allRegister =  res.map(async key => {
-        let register = await RedisClient.get(key)
-        return register;
-    })
-    let c = await allRegister
-    console.log(c)
-    io.emit('allRegister', allRegister)
+    io.emit('allRegister', await getAlldata())
     socket.on('chat message', async (msg) => {
         const date = new Date()
-        msg.data = "["+dataAtualFormatada()+"]"+" - "+date.getHours()+":"+date.getMinutes()+":"+date.getSeconds()+" ";
-        await RedisClient.set(msg.name, msg.mensagem)
+        msg.data = getDate()
+        await RedisClient.set(msg.name, `{ "date": "${msg.data}", "message": "${msg.mensagem}"}`)
         io.emit('update', msg)
     });
+    socket.on('disconnect', () => {
+        io.emit('disc', {status:'desconectado'})
+    });
 });
-
-function dataAtualFormatada(){
-    var data = new Date(),
-        dia  = data.getDate().toString(),
-        diaF = (dia.length == 1) ? '0'+dia : dia,
-        mes  = (data.getMonth()+1).toString(), //+1 pois no getMonth Janeiro começa com zero.
-        mesF = (mes.length == 1) ? '0'+mes : mes,
-        anoF = data.getFullYear();
-    return diaF+"/"+mesF+"/"+anoF;
+async function getAlldata(){
+    let allKeys = await RedisClient.keys("*")
+    if(allKeys.length > 0){
+        let result = await RedisClient.mget(allKeys)
+        let formated = []
+        for(let k = 0; k<allKeys.length;k++){
+            formated.push(
+                {
+                    name:allKeys[k],
+                    data:JSON.parse(result[k])
+                }
+            )
+        }  
+        return formated
+    }
+    return "nothing";
 }
+
+
 
 export {serverHttp, io}

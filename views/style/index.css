@@ -34,10 +34,9 @@ body {
     margin-top: 1rem; 
 }
 #chatView {
-    width: 20rem;
+    width: 40rem;
     height: 15rem;
     background-color: rgb(201, 200, 200);
-    border-radius: 8px;
     padding: 1rem;
     overflow-y: scroll;
 
